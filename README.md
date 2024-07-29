@@ -402,5 +402,5 @@ LSA在面对大规模文本数据时，能够有效地提取出其中的潜在�
 ![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409758953_截屏20240708113529.png)
 ![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409765248_截屏20240708113538.png)
 
-代码链接：
+复现代码链接：
 https://www.aspiringcode.com/content?id=17203480681863&private=1
