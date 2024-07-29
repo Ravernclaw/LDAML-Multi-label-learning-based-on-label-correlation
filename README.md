@@ -1,22 +1,25 @@
 - [论文概述](#论文概述)
   - [什么是多标签学习](#什么是多标签学习)
   - [论文贡献](#论文贡献)
-- [算法流程\`\`\`](#算法流程)
-- [导入必要的库](#导入必要的库)
-- [定义函数](#定义函数)
-- [主程序](#主程序)
-- [定义LIFTClassifier类，继承自BaseEstimator和ClassifierMixin](#定义liftclassifier类继承自baseestimator和classifiermixin)
-- [定义MLkNN类](#定义mlknn类)
-- [定义RankSVM类，继承自BaseEstimator和ClassifierMixin](#定义ranksvm类继承自baseestimator和classifiermixin)
-- [定义MultiLabelDecisionTree类](#定义multilabeldecisiontree类)
-- [定义MLP神经网络类，继承自nn.Module](#定义mlp神经网络类继承自nnmodule)
-- [定义BPMLL类，继承自BaseEstimator和ClassifierMixin](#定义bpmll类继承自baseestimator和classifiermixin)
-- [定义RandomKLabelsetsClassifier类，继承自BaseEstimator和ClassifierMixin](#定义randomklabelsetsclassifier类继承自baseestimator和classifiermixin)
+- [算法流程](#算法流程)
+  - [挖掘“主题“——提取标签相关性](#挖掘主题提取标签相关性)
+  - [训练$M\_T$模型——拟合{特征集, 主题集合}](#训练m_t模型拟合特征集-主题集合)
+  - [用标记相关性扩增数据集](#用标记相关性扩增数据集)
+  - [再次训练拟合$M$模型——对真实帕金森病例进行筛查](#再次训练拟合m模型对真实帕金森病例进行筛查)
+- [实验结果](#实验结果)
+- [核心代码复现](#核心代码复现)
+  - [main.py文件](#mainpy文件)
+  - [multi\_label\_learn.py文件](#multi_label_learnpy文件)
+- [使用方法](#使用方法)
+  - [导入本地数据集](#导入本地数据集)
+  - [构建多标签学习分类模型](#构建多标签学习分类模型)
+  - [运行模型输出测试指标](#运行模型输出测试指标)
+- [测试结果](#测试结果)
 - [未来可能的改进方向](#未来可能的改进方向)
 - [环境配置](#环境配置)
 
 # 论文概述
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720349070671_截屏20240707184418.png)
+![Description](https://cdn-store.aspiringcode.com/1720349070671_截屏20240707184418.png)
 
 帕金森病是一种使人虚弱的慢性神经系统疾病。传统中医（TCM）是一种诊断帕金森病的新方法，而用于诊断帕金森病的中医数据集是一个多标签数据集。考虑到帕金森病数据集中的症状（标签）之间总是存在相关性，可以通过利用标签相关性来促进多标签学习过程。目前的多标签分类方法主要尝试从标签对或标签链中挖掘相关性。该文章提出了一种简单且高效的多标签分类框架，称为潜在狄利克雷分布多标签（LDAML），该框架旨在通过使用类别标签的主题模型来学习全局相关性。简而言之，研究人员试图通过主题模型在标签集上获得抽象的“主题”，从而能够挖掘标签之间的全局相关性。大量实验清楚地验证了所提出的方法是一个通用且有效的框架，能够提高大多数多标签算法的性能。基于该框架，研究人员在中医帕金森病数据集上取得了令人满意的实验结果，这可以为该领域的发展提供参考和帮助。
 
@@ -27,13 +30,14 @@
 2. 该框架可以应用于大多数当前的多标签分类方法，使其性能得到提升。通过使用LDAML框架，可以显著提升简单方法（如Binary Relevance, BR）的性能，甚至超过某些最新的方法，同时保持较低的时间成本。
 3. 提出的改进LDAML在某些特殊数据集（如帕金森数据集）上取得了最佳性能。特别是在帕金森数据集上，改进的LDAML框架实现了最优性能，达到了本文的最终目标。该方法能够在未来为医生提供指导和帮助。
 # 算法流程
+
 ## 挖掘“主题“——提取标签相关性
 与通过查找标签子集或标签链来利用相关性的传统方法不同，LDAML通过发现标签的抽象“主题”来利用相关性。假设为d维特征向量的输入空间，表示q类标号的输出空间。给定多标签训练集，其中为d维特征向量，为对应的标签集。我们可以将每个实例看作一个文档，每个标签看作文档中的一个单词。直观地说，一定有一些抽象的“主题”，期望特定的标签或多或少地出现在实例中，特别是在包含大量相关标签的多标签数据集中。LDAML算法的主要流程分为两步：（1）从训练集中挖掘标签主题；（2）计算主题的离散分布。
 
 **从训练集中挖掘标签主题:** 首先，我们将LDA引入到训练集d中，每个实例xi表示文档，每个标签表示第i个实例中的第j个标签。然后利用LDA模型生成过程计算实例-主题 θ 的概率分布矩阵，其中 表示第i个实例注入第j主题的概率。
 **主题的离散分布:** 计算实例-主题分布矩阵后，得到每个实例属于每个主题的概率值。为了确定实例确切属于哪个主题，我们需要用离散值0/1来代替概率值。在这里我们使用的离散化方法如下所示：
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720347277228_截屏20240707181415.png)
+![Description](https://cdn-store.aspiringcode.com/1720347277228_截屏20240707181415.png)
 
 ## 训练$M_T$模型——拟合{特征集, 主题集合}
 在这里我们的训练集数据与测试集数据分布相似，因此我们可以假设测试数据集的主题概率分布与训练数据集相同。首先我们对训练集提取出具有标记相关性的k个主题(利用算法1)，然后我们使用多标签分类模型$M_T$对训练集的特征-主题进行拟合，然后利用训练好的MT模型对未知标记集合的测试集特征数据生成含有标记相关性的k个主题（这里需要注意的是，$M_T$可以随便选取一个有效的多标签分类模型，文章的重点是利用标签相关性来提高各种多标签学习模型的效率）。
@@ -45,14 +49,14 @@
 ## 再次训练拟合$M$模型——对真实帕金森病例进行筛查
 最后，可以再次使用一种多标签学习模型M对扩增后的训练集D'进行拟合，进一步建立输入数据和输出空间的数据联系。然后对扩增后的测试集t'进行多标签分类，获得输入样本是否患有病症以及其他情况的预测结果。上述过程的整体框架流程图如算法2所示。
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720348725009_截屏20240707183834.png)
+![Description](https://cdn-store.aspiringcode.com/1720348725009_截屏20240707183834.png)
 
 # 实验结果
 文章在四份数据集上用多种多标签学习分类模型分别加上LDAML算法与其原始模型的分类效果进行对比，实验结果如图所示：
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409320830_截屏20240708112658.png)
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409340844_截屏20240708112716.png)
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409347516_截屏20240708112724.png)
+![Description](https://cdn-store.aspiringcode.com/1720409320830_截屏20240708112658.png)
+![Description](https://cdn-store.aspiringcode.com/1720409340844_截屏20240708112716.png)
+![Description](https://cdn-store.aspiringcode.com/1720409347516_截屏20240708112724.png)
 
 以上实验结果表明，LDAML能够在性能和时间成本之间取得良好的平衡。目前的大多数方法都可以应用于LDAML。我们可以采用目前最先进的方法作为LDAML在原始基础上取得突破的基本方法（base model）。另一方面，唯一额外的时间代价是计算主题概率分布矩阵的小词空间。因此，LDAML的时间成本接近于其基础方法的时间成本。通过采用BR或CC等较弱的方法作为基本方法，可以在较低的时间成本下提高接近实际状态的性能。这些结果表明，LDAML是一个通用的框架，可以为具有标签相关性的多标签问题提供鲁棒且更优的解决方案。
 # 核心代码复现
@@ -357,30 +361,28 @@ class RandomKLabelsetsClassifier(BaseEstimator, ClassifierMixin):
 # 使用方法
 ## 导入本地数据集
 调用LDAML算法的方法放在main.py文件中，首先我们需要将文件路径修改成自己所要使用的数据集路径。这里我使用的文件路径为'./测试数据.xlsx'，供大家一键运行熟悉项目。然后大家需要将自己的标签列名称提取变量label_cols中，用于对数据集划分特征集合与标签集合。
-
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720521567122_截屏20240709183846.png)
+![Description](https://cdn-store.aspiringcode.com/1720521567122_截屏20240709183846.png)
 ## 构建多标签学习分类模型
 构建想要的多标签学习分类算法，这里我给大家复现了多种经典的多标签分类器，如LIFT、MlkNN和RankSVM等，并帮大家配置好了参数，大家可以将想要使用的算法对应行的注释删掉即可（$M_T$和$M$都是一样）。
-
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720521750979_截屏20240709184026.png)
-
+![Description](https://cdn-store.aspiringcode.com/1720521750979_截屏20240709184026.png)
 ## 运行模型输出测试指标
 设置好这些外在参数后，我们就可以运行代码，主文件将自动调用第三方库和multi_label_learn.py文件中的函数来进行训练和测试。下面是我选取的几种测试指标，分别会输出模型对整体的多标签分类性能指标（Hamming loss、Ranking loss、Coverage error和Average precision）和对单一标签的分类指标（Accuracy、Precision、Recall、F1 Score和AUC）。
-
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720521976103_截屏20240709184249.png)
+![Description](https://cdn-store.aspiringcode.com/1720521976103_截屏20240709184249.png)
 
 # 测试结果
 下面是在测试数据集上模型的表现：
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720522173842_截屏20240709184755.png)
+![Description](https://cdn-store.aspiringcode.com/1720522173842_截屏20240709184755.png)
 
 以上是模型多标签学习分类的性能，Hamming Loss为0.051228070175438595，Ranking Loss为0.016737120579225842，Coverage Error为2.3263157894736843，Average Precision为0.7500066243540565
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720522505735_截屏20240709185439.png)
+![Description](https://cdn-store.aspiringcode.com/1720522505735_截屏20240709185439.png)
 
-以上是对模型在单一标签下的分类性能测试结果，测试数据集中有十个标签，因此这里会输出十个标签下模型分类的Accuracy、Precision、Recall、F1 Score和AUC，也就是说这样的数据会有十组
+以上是对模型在单一标签下的分类性能测试结果，测试数据集中有十个标签，因此这里会输出十个标签下模型分类的Accuracy、Precision、Recall、
+F1 Score和AUC，也就是说这样的数据会有十组
 
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720523066940_截屏20240709190359.png)
+![Description](https://cdn-store.aspiringcode.com/1720523066940_截屏20240709190359.png)
+
 我这里把数据列成表这样大家可以更直观的看到，我换用了不同的多标签学习算法结合LDAML，并比较了它们在Accuracy、AUC和F1-score上的表现。在上面的情况上来看，使用BPMLL在整体对单一标签进行分类时效果相比其他算法更好，但也会在某些标签下弱于其他模型。
 
 # 未来可能的改进方向
@@ -395,10 +397,10 @@ LSA在面对大规模文本数据时，能够有效地提取出其中的潜在�
 - python3.8或以上版本
 - 须事先安装第三方库torch、numpy、sklearn、pandas、skmultilearn
 - 可修改变量——主题数n、所用的本地数据集、多标签分类器$M_T$和$M$
-  
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409752103_截屏20240708113520.png)
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409758953_截屏20240708113529.png)
-![Description](https://github.com/Ravernclaw/LDAML-Multi-label-learning-based-on-label-correlation/blob/main/img-folder/1720409765248_截屏20240708113538.png)
+
+![Description](https://cdn-store.aspiringcode.com/1720409752103_截屏20240708113520.png)
+![Description](https://cdn-store.aspiringcode.com/1720409758953_截屏20240708113529.png)
+![Description](https://cdn-store.aspiringcode.com/1720409765248_截屏20240708113538.png)
 
 代码链接：
 https://www.aspiringcode.com/content?id=17203480681863&private=1
